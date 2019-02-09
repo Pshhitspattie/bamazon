@@ -1,50 +1,73 @@
-var mysql = require("mysql");
-var inquirer = require("inquirer");
+const mysql = require("mysql");
+
+const inquirer = require("inquirer");
 
 var connection = mysql.createConnection({
-  host: "localhost",
+   host: "localhost",
 
-  // Your port; if not 3306
-  port: 3306,
+   // Your port; if not 3306
+   port: 3306,
 
-  // Your username
-  user: "root",
+   // Your username
+   user: "root",
 
-  // Your password
-  password: "loveya246",
-  database: "bamazon"
+   // Your password
+   password: "loveya246",
+   database: "bamazon"
+});
+connection.connect(function (err) {
+   if (err) throw err;
+   console.log("connected as id " + connection.threadId);
+   console.log("Welcome to BaMaZoN!")
+   items()
 });
 
-
-connection.query('Select * from Products', function(err, res){
-        if(err) throw err;
-        start();
-
-        console.log('Welcome to BAMazon')
-  console.log('--------------------------------------')
-
-  for(var i = 0; i<res.length;i++){
-    console.log("ID: " + res[i].item_id + " | " + "Product: " + res[i].product_name + " | " + "Department: " + res[i].department_name + " | " + "Price: " + res[i].price + " | " + "QTY: " + res[i].stock_quantity);
-    console.log('--------------------------------------------------------------------------------------------------')
-  }
-
-    })
-
-function start(){
-    inquirer
-    .prompt([
-        {
-        name: "ID",
-        type: "input",
-        message: "What is the ID of the product you would like to buy?"
-        },
-        {
-            name: "Units",
-            type: "input",
-            message: "How many units of the product would you like to buy? "
-        }
-
-    ])
+function items() {
+   connection.query("SELECT * FROM products", function (err, res) {
+       for (var i = 0; i < res.length; i++) {
+           var store = "Item ID: " + res[i].item_id +
+               "\nProduct: " + res[i].product_name +
+               "\nPrice: $" + res[i].price +
+               "\nQuantity: " + res[i].stock_quantity +
+               "\n------------------------------------------"
+           console.log(store);
+       }
+       placeOrder()
+   });
 }
-    
 
+function placeOrder() {
+   inquirer.prompt([{
+               type: 'input',
+               message: 'Enter the Item number of what you would like to purchase',
+               name: 'purchased'
+           },
+           {
+               type: 'input',
+               message: 'The Quanity of you would like to Purchase',
+               name: 'amount'
+           }
+       ])
+       .then(function (result) {
+               const purchased = result.purchased;
+               const amount = parseInt(result.amount)
+               connection.query("SELECT * FROM products", function (err, res) {
+                   if (res[purchased - 1].stock_quantity <= amount) {
+                       console.log('Not enough stock! Try again.')
+                   }
+                   else{
+                       connection.query("UPDATE products SET ? WHERE ?", [{
+                           stock_quantity: res[purchased - 1].stock_quantity - amount
+                               },
+                               {
+                                   item_id: purchased
+                               }
+                           ], function (err, resu) {
+                               console.log("You Purchased: " + res[purchased - 1].product_name)
+                               console.log("Quantity: " + amount + " totalling $" + ((res[purchased - 1].price * amount).toFixed(2)))
+                           })
+                       }
+               });
+
+           })
+       }
